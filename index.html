@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHANTOM — Device Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg:       #020608;
+    --surface:  #060d10;
+    --panel:    #0a1518;
+    --border:   #0f2830;
+    --accent:   #00e5ff;
+    --accent2:  #ff3d71;
+    --accent3:  #00ff9d;
+    --text:     #c8dde3;
+    --dim:      #3a5560;
+    --glow:     0 0 20px rgba(0,229,255,0.15);
+    --glow-hot: 0 0 20px rgba(255,61,113,0.2);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 400;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  /* Grid noise background */
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .shell { position:relative; z-index:1; display:flex; flex-direction:column; min-height:100vh; }
+
+  /* ── HEADER ── */
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(6,13,16,0.95);
+    backdrop-filter: blur(10px);
+    position: sticky; top:0; z-index:100;
+  }
+
+  .logo {
+    display:flex; align-items:center; gap:12px;
+  }
+
+  .logo-icon {
+    width:36px; height:36px;
+    border: 1.5px solid var(--accent);
+    border-radius: 6px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: var(--glow), inset 0 0 10px rgba(0,229,255,0.1);
+    position:relative;
+    overflow:hidden;
+  }
+
+  .logo-icon::after {
+    content:'';
+    position:absolute; inset:0;
+    background: linear-gradient(135deg, rgba(0,229,255,0.15), transparent);
+    animation: shimmer 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes shimmer {
+    from { opacity:0.3; }
+    to   { opacity:1; }
+  }
+
+  .logo-icon svg { width:18px; height:18px; fill:var(--accent); position:relative; z-index:1; }
+
+  .logo-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 18px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,229,255,0.5);
+  }
+
+  .logo-sub {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-transform:uppercase;
+    margin-top:1px;
+  }
+
+  .header-right { display:flex; align-items:center; gap:16px; }
+
+  .status-pill {
+    display:flex; align-items:center; gap:6px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  .status-pill.online  { border-color: var(--accent3); color: var(--accent3); }
+  .status-pill.offline { border-color: var(--accent2); color: var(--accent2); }
+  .status-pill.loading { border-color: var(--dim);     color: var(--dim); }
+
+  .pulse {
+    width:7px; height:7px; border-radius:50%;
+    background: currentColor;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:0.4; transform:scale(0.7); }
+  }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor:pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing:1px;
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { border-color:var(--accent); color:var(--accent); box-shadow:var(--glow); }
+
+  /* ── LAYOUT ── */
+  .main {
+    display:grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 1fr;
+    flex:1;
+    height: calc(100vh - 65px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display:flex; flex-direction:column; gap:1px;
+  }
+
+  .sidebar::-webkit-scrollbar { width:3px; }
+  .sidebar::-webkit-scrollbar-track { background: var(--bg); }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .panel {
+    background: var(--panel);
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display:flex; align-items:center; gap:8px;
+  }
+
+  .panel-label::after {
+    content:'';
+    flex:1; height:1px;
+    background: var(--border);
+  }
+
+  /* Coords panel */
+  .coord-block {
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+    margin-bottom:8px;
+  }
+
+  .coord-item { }
+
+  .coord-key {
+    font-size:10px; letter-spacing:2px;
+    color:var(--dim); text-transform:uppercase;
+    margin-bottom:3px;
+  }
+
+  .coord-val {
+    font-family:'Share Tech Mono', monospace;
+    font-size:15px;
+    color:var(--accent);
+    text-shadow: 0 0 10px rgba(0,229,255,0.3);
+  }
+
+  .coord-val.full { grid-column: 1/-1; font-size:13px; color:var(--text); }
+
+  .accuracy-bar-wrap {
+    margin-top:10px;
+  }
+
+  .accuracy-bar-label {
+    display:flex; justify-content:space-between;
+    font-size:11px; color:var(--dim);
+    margin-bottom:4px;
+    font-family:'Share Tech Mono', monospace;
+  }
+
+  .accuracy-bar {
+    height:3px; background:var(--border); border-radius:2px; overflow:hidden;
+  }
+
+  .accuracy-fill {
+    height:100%;
+    background: linear-gradient(90deg, var(--accent3), var(--accent));
+    border-radius:2px;
+    transition: width 1s ease;
+  }
+
+  /* Device info */
+  .info-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(15,40,48,0.8);
+    font-size:13px;
+  }
+
+  .info-row:last-child { border-bottom:none; }
+  .info-key { color:var(--dim); letter-spacing:1px; font-size:12px; }
+  .info-val {
+    font-family:'Share Tech Mono', monospace;
+    font-size:12px;
+    color:var(--text);
+    text-align:right;
+  }
+
+  .info-val.good  { color:var(--accent3); }
+  .info-val.warn  { color:#ffcc00; }
+  .info-val.bad   { color:var(--accent2); }
+
+  /* Timeline */
+  .timeline { display:flex; flex-direction:column; gap:0; }
+
+  .tl-item {
+    display:flex; gap:10px; align-items:flex-start;
+    padding:10px 0;
+    border-bottom: 1px solid rgba(15,40,48,0.5);
+    cursor:pointer;
+    transition: background 0.15s;
+    border-radius:4px;
+    padding: 8px 6px;
+  }
+
+  .tl-item:hover { background: rgba(0,229,255,0.04); }
+  .tl-item.active { background: rgba(0,229,255,0.08); }
+
+  .tl-dot {
+    width:8px; height:8px; border-radius:50%;
+    background:var(--dim); margin-top:4px; flex-shrink:0;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
+  }
+
+  .tl-item.active .tl-dot,
+  .tl-item:first-child .tl-dot {
+    background:var(--accent);
+    border-color:var(--accent);
+    box-shadow: 0 0 8px rgba(0,229,255,0.5);
+  }
+
+  .tl-content { flex:1; }
+
+  .tl-time {
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--accent);
+    margin-bottom:2px;
+  }
+
+  .tl-coords {
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--dim);
+  }
+
+  .tl-acc {
+    font-size:10px;
+    color:var(--dim);
+    margin-top:1px;
+  }
+
+  .tl-empty {
+    font-family:'Share Tech Mono', monospace;
+    font-size:12px;
+    color:var(--dim);
+    text-align:center;
+    padding:20px 0;
+  }
+
+  /* ── MAP ── */
+  #map {
+    width:100%; height:100%;
+    background: var(--bg);
+  }
+
+  /* Leaflet dark overrides */
+  .leaflet-container { background:#020608 !important; }
+
+  .leaflet-tile-pane { filter: brightness(0.35) saturate(0.3) hue-rotate(180deg); }
+
+  .leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--accent) !important;
+    border-color: var(--border) !important;
+    font-family:'Share Tech Mono', monospace !important;
+  }
+
+  .leaflet-control-zoom a:hover {
+    background: var(--border) !important;
+  }
+
+  .leaflet-control-attribution {
+    background: rgba(6,13,16,0.8) !important;
+    color: var(--dim) !important;
+    font-size:9px !important;
+  }
+
+  .leaflet-control-attribution a { color:var(--dim) !important; }
+
+  /* Custom marker */
+  .phantom-marker {
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  .marker-core {
+    width:14px; height:14px;
+    background:var(--accent2);
+    border-radius:50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 3px rgba(255,61,113,0.3), 0 0 20px rgba(255,61,113,0.5);
+    animation: markerPulse 2s ease-in-out infinite;
+    position:relative; z-index:2;
+  }
+
+  @keyframes markerPulse {
+    0%,100% { box-shadow: 0 0 0 3px rgba(255,61,113,0.3), 0 0 20px rgba(255,61,113,0.5); }
+    50%      { box-shadow: 0 0 0 8px rgba(255,61,113,0.1), 0 0 30px rgba(255,61,113,0.7); }
+  }
+
+  /* Map overlay — top info bar */
+  .map-overlay {
+    position:absolute;
+    top:12px; left:50%; transform:translateX(-50%);
+    z-index:500;
+    background: rgba(6,13,16,0.92);
+    border: 1px solid var(--border);
+    border-radius:6px;
+    padding:8px 16px;
+    display:flex; align-items:center; gap:16px;
+    backdrop-filter: blur(10px);
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--dim);
+    white-space:nowrap;
+    box-shadow: var(--glow);
+  }
+
+  .map-overlay span { color:var(--accent); }
+
+  /* Loading state */
+  .loading-overlay {
+    position:absolute; inset:0;
+    background:var(--bg);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index:200;
+    gap:16px;
+  }
+
+  .loading-overlay.hidden { display:none; }
+
+  .loader-ring {
+    width:48px; height:48px;
+    border:2px solid var(--border);
+    border-top-color:var(--accent);
+    border-radius:50%;
+    animation:spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .loader-text {
+    font-family:'Share Tech Mono', monospace;
+    font-size:12px;
+    letter-spacing:3px;
+    color:var(--dim);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Error state */
+  .error-box {
+    background: rgba(255,61,113,0.08);
+    border: 1px solid rgba(255,61,113,0.3);
+    border-radius:6px;
+    padding:12px;
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--accent2);
+    line-height:1.6;
+    display:none;
+  }
+
+  /* Countdown */
+  .countdown-bar {
+    height:2px;
+    background:var(--border);
+    position:fixed; bottom:0; left:0; right:0;
+    z-index:200;
+  }
+
+  .countdown-fill {
+    height:100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width 1s linear;
+    box-shadow: 0 0 8px rgba(0,229,255,0.5);
+  }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .main { grid-template-columns:1fr; grid-template-rows: auto 50vh; }
+    .sidebar { max-height:280px; }
+    header { padding:12px 16px; }
+    .logo-text { font-size:14px; letter-spacing:3px; }
+    .map-overlay { font-size:10px; gap:10px; padding:6px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">PHANTOM</div>
+        <div class="logo-sub">Passive Hardware Acquisition Network</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill loading" id="statusPill">
+        <div class="pulse"></div>
+        <span id="statusText">CONNECTING</span>
+      </div>
+      <button class="refresh-btn" onclick="fetchLocation()">⟳ REFRESH</button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Coordinates -->
+      <div class="panel">
+        <div class="panel-label">Last Known Position</div>
+        <div class="coord-block">
+          <div class="coord-item">
+            <div class="coord-key">Latitude</div>
+            <div class="coord-val" id="lat">—</div>
+          </div>
+          <div class="coord-item">
+            <div class="coord-key">Longitude</div>
+            <div class="coord-val" id="lon">—</div>
+          </div>
+          <div class="coord-item coord-val full" style="margin-top:4px">
+            <div class="coord-key">Maps Link</div>
+            <a id="mapsLink" href="#" target="_blank"
+               style="color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:12px;text-decoration:none;">
+              — open in maps
+            </a>
+          </div>
+        </div>
+        <div class="accuracy-bar-wrap">
+          <div class="accuracy-bar-label">
+            <span>ACCURACY</span>
+            <span id="accVal">—</span>
+          </div>
+          <div class="accuracy-bar">
+            <div class="accuracy-fill" id="accBar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Device info -->
+      <div class="panel">
+        <div class="panel-label">Device Status</div>
+        <div id="errorBox" class="error-box"></div>
+        <div class="info-row">
+          <span class="info-key">DEVICE</span>
+          <span class="info-val" id="devName">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">LAST SEEN</span>
+          <span class="info-val" id="lastSeen">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">UPDATED UTC</span>
+          <span class="info-val" id="updatedUtc">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">DATA SOURCE</span>
+          <span class="info-val good">GitHub API</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">NEXT REFRESH</span>
+          <span class="info-val" id="nextRefresh">5:00</span>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="panel" style="flex:1">
+        <div class="panel-label">Location History</div>
+        <div class="timeline" id="timeline">
+          <div class="tl-empty">No history yet</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MAP -->
+    <div style="position:relative; overflow:hidden;">
+      <div id="map"></div>
+
+      <div class="map-overlay" id="mapOverlay">
+        <span id="overlayCoords">Acquiring signal...</span>
+        &nbsp;|&nbsp;
+        ACC <span id="overlayAcc">—</span>m
+        &nbsp;|&nbsp;
+        <span id="overlayTime">—</span>
+      </div>
+
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader-ring"></div>
+        <div class="loader-text">ACQUIRING SIGNAL</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Countdown bar -->
+  <div class="countdown-bar">
+    <div class="countdown-fill" id="countdownFill" style="width:100%"></div>
+  </div>
+
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────
+const GITHUB_USER   = 'franc417';
+const GITHUB_REPO   = 'phantom-data';
+const REFRESH_SECS  = 300; // 5 minutes
+const MAX_HISTORY   = 20;
+
+// ── STATE ─────────────────────────────────────────────────────────
+let map, marker, accuracyCircle;
+let history = JSON.parse(localStorage.getItem('phantom_history') || '[]');
+let countdown = REFRESH_SECS;
+let countdownTimer, refreshTimer;
+
+// ── MAP INIT ──────────────────────────────────────────────────────
+function initMap() {
+  map = L.map('map', {
+    center: [0, 20],
+    zoom: 3,
+    zoomControl: true,
+    attributionControl: true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19,
+  }).addTo(map);
+}
+
+// ── CUSTOM MARKER ─────────────────────────────────────────────────
+function buildMarkerIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div class="phantom-marker"><div class="marker-core"></div></div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+}
+
+// ── FETCH LOCATION ────────────────────────────────────────────────
+async function fetchLocation() {
+  setStatus('loading', 'CONNECTING');
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+
+  const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/location.json`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) throw new Error(`GitHub API ${res.status}: ${res.statusText}`);
+
+    const data = await res.json();
+    const decoded = JSON.parse(atob(data.content));
+    processLocation(decoded);
+
+  } catch (err) {
+    showError(err.message);
+    setStatus('offline', 'OFFLINE');
+  } finally {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    resetCountdown();
+  }
+}
+
+// ── PROCESS LOCATION ──────────────────────────────────────────────
+function processLocation(loc) {
+  const lat = parseFloat(loc.latitude);
+  const lon = parseFloat(loc.longitude);
+  const acc = parseFloat(loc.accuracy) || 0;
+
+  if (isNaN(lat) || isNaN(lon)) {
+    showError('Invalid coordinates in data');
+    setStatus('offline', 'BAD DATA');
+    return;
+  }
+
+  hideError();
+  setStatus('online', 'TRACKING');
+
+  // Update sidebar coords
+  document.getElementById('lat').textContent        = lat.toFixed(6);
+  document.getElementById('lon').textContent        = lon.toFixed(6);
+  document.getElementById('accVal').textContent     = `±${acc.toFixed(0)}m`;
+  document.getElementById('devName').textContent    = loc.device || 'Unknown';
+  document.getElementById('lastSeen').textContent   = loc.timestamp || '—';
+  document.getElementById('updatedUtc').textContent = loc.updated_utc || '—';
+
+  // Maps link
+  const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+  const mapsEl  = document.getElementById('mapsLink');
+  mapsEl.href   = mapsUrl;
+  mapsEl.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+  // Accuracy bar (0m = 100%, 500m = 0%)
+  const barPct = Math.max(0, Math.min(100, 100 - (acc / 500) * 100));
+  document.getElementById('accBar').style.width = barPct + '%';
+
+  // Map overlay
+  document.getElementById('overlayCoords').textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  document.getElementById('overlayAcc').textContent    = acc.toFixed(0);
+  document.getElementById('overlayTime').textContent   = loc.timestamp || '—';
+
+  // Update map marker
+  if (!marker) {
+    marker = L.marker([lat, lon], { icon: buildMarkerIcon() }).addTo(map);
+  } else {
+    marker.setLatLng([lat, lon]);
+  }
+
+  if (accuracyCircle) {
+    accuracyCircle.setLatLng([lat, lon]).setRadius(acc);
+  } else {
+    accuracyCircle = L.circle([lat, lon], {
+      radius: acc,
+      color: '#00e5ff',
+      fillColor: '#00e5ff',
+      fillOpacity: 0.06,
+      weight: 1,
+      dashArray: '4 4',
+    }).addTo(map);
+  }
+
+  map.setView([lat, lon], map.getZoom() < 10 ? 14 : map.getZoom());
+
+  // Add to history
+  const entry = { lat, lon, acc, timestamp: loc.timestamp, updated: loc.updated_utc };
+  const isDuplicate = history.length > 0 &&
+    history[0].timestamp === entry.timestamp;
+
+  if (!isDuplicate) {
+    history.unshift(entry);
+    if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
+    localStorage.setItem('phantom_history', JSON.stringify(history));
+  }
+
+  renderTimeline();
+}
+
+// ── TIMELINE ──────────────────────────────────────────────────────
+function renderTimeline() {
+  const el = document.getElementById('timeline');
+  if (!history.length) {
+    el.innerHTML = '<div class="tl-empty">No history yet</div>';
+    return;
+  }
+
+  el.innerHTML = history.map((h, i) => `
+    <div class="tl-item ${i === 0 ? 'active' : ''}" onclick="flyTo(${h.lat},${h.lon},${h.acc})">
+      <div class="tl-dot"></div>
+      <div class="tl-content">
+        <div class="tl-time">${h.timestamp || h.updated || '—'}</div>
+        <div class="tl-coords">${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</div>
+        <div class="tl-acc">±${(h.acc||0).toFixed(0)}m accuracy</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function flyTo(lat, lon, acc) {
+  map.flyTo([lat, lon], 15, { animate:true, duration:1 });
+}
+
+// ── STATUS ────────────────────────────────────────────────────────
+function setStatus(type, text) {
+  const pill = document.getElementById('statusPill');
+  const txt  = document.getElementById('statusText');
+  pill.className = `status-pill ${type}`;
+  txt.textContent = text;
+}
+
+// ── ERROR ─────────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.style.display = 'block';
+  el.textContent = `ERR: ${msg}`;
+}
+
+function hideError() {
+  document.getElementById('errorBox').style.display = 'none';
+}
+
+// ── COUNTDOWN ─────────────────────────────────────────────────────
+function resetCountdown() {
+  clearInterval(countdownTimer);
+  clearTimeout(refreshTimer);
+  countdown = REFRESH_SECS;
+
+  countdownTimer = setInterval(() => {
+    countdown--;
+    const pct = (countdown / REFRESH_SECS) * 100;
+    document.getElementById('countdownFill').style.width = pct + '%';
+
+    const m = Math.floor(countdown / 60);
+    const s = countdown % 60;
+    document.getElementById('nextRefresh').textContent =
+      `${m}:${s.toString().padStart(2,'0')}`;
+
+    if (countdown <= 0) {
+      clearInterval(countdownTimer);
+      fetchLocation();
+    }
+  }, 1000);
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────
+initMap();
+renderTimeline();
+fetchLocation();
+</script>
+</body>
+</html>
