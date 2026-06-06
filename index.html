@@ -17,466 +17,390 @@
     --accent:   #00e5ff;
     --accent2:  #ff3d71;
     --accent3:  #00ff9d;
+    --warn:     #ffcc00;
     --text:     #c8dde3;
     --dim:      #3a5560;
     --glow:     0 0 20px rgba(0,229,255,0.15);
-    --glow-hot: 0 0 20px rgba(255,61,113,0.2);
   }
-
   * { margin:0; padding:0; box-sizing:border-box; }
-
   body {
     background: var(--bg);
     color: var(--text);
     font-family: 'Rajdhani', sans-serif;
-    font-weight: 400;
     min-height: 100vh;
     overflow-x: hidden;
   }
-
-  /* Scanline overlay */
   body::before {
     content:'';
     position:fixed; inset:0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.08) 2px,
-      rgba(0,0,0,0.08) 4px
-    );
-    pointer-events:none;
-    z-index:9999;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+    pointer-events:none; z-index:9999;
   }
-
-  /* Grid noise background */
   body::after {
     content:'';
     position:fixed; inset:0;
-    background-image:
-      linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events:none;
-    z-index:0;
+    background-image: linear-gradient(rgba(0,229,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.02) 1px,transparent 1px);
+    background-size:40px 40px;
+    pointer-events:none; z-index:0;
   }
-
   .shell { position:relative; z-index:1; display:flex; flex-direction:column; min-height:100vh; }
 
-  /* ── HEADER ── */
+  /* OFFLINE ALERT BANNER */
+  #offlineBanner {
+    display:none;
+    position:fixed; top:65px; left:0; right:0;
+    z-index:1000;
+    background: linear-gradient(90deg, rgba(255,61,113,0.15), rgba(255,61,113,0.08), rgba(255,61,113,0.15));
+    border-top: 1px solid rgba(255,61,113,0.4);
+    border-bottom: 1px solid rgba(255,61,113,0.4);
+    padding: 10px 24px;
+    display:none;
+    align-items:center;
+    gap:12px;
+    animation: bannerPulse 2s ease-in-out infinite;
+  }
+  #offlineBanner.show { display:flex; }
+  @keyframes bannerPulse {
+    0%,100% { background: linear-gradient(90deg,rgba(255,61,113,0.15),rgba(255,61,113,0.08),rgba(255,61,113,0.15)); }
+    50%      { background: linear-gradient(90deg,rgba(255,61,113,0.25),rgba(255,61,113,0.15),rgba(255,61,113,0.25)); }
+  }
+  .banner-icon {
+    width:32px; height:32px; border-radius:50%;
+    border:2px solid var(--accent2);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--accent2); font-size:16px; flex-shrink:0;
+    animation: iconSpin 3s ease-in-out infinite;
+  }
+  @keyframes iconSpin {
+    0%,100%{ transform:scale(1); }
+    50%    { transform:scale(1.15); }
+  }
+  .banner-content { flex:1; }
+  .banner-title {
+    font-family:'Share Tech Mono',monospace;
+    font-size:13px; letter-spacing:3px;
+    color:var(--accent2);
+    text-shadow: 0 0 10px rgba(255,61,113,0.5);
+  }
+  .banner-sub {
+    font-size:12px; color:rgba(255,61,113,0.7);
+    margin-top:2px; letter-spacing:1px;
+  }
+  .banner-actions { display:flex; gap:8px; }
+  .banner-btn {
+    padding:5px 14px;
+    border:1px solid var(--accent2);
+    background:transparent;
+    color:var(--accent2);
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:1px;
+    border-radius:3px; cursor:pointer;
+    transition:all 0.2s;
+  }
+  .banner-btn:hover { background:rgba(255,61,113,0.15); box-shadow:0 0 10px rgba(255,61,113,0.3); }
+  .banner-btn.primary {
+    background:rgba(255,61,113,0.2);
+    border-color:var(--accent2);
+  }
+  .offline-timer {
+    font-family:'Share Tech Mono',monospace;
+    font-size:22px; color:var(--accent2);
+    text-shadow: 0 0 20px rgba(255,61,113,0.6);
+    white-space:nowrap;
+  }
+  .offline-timer span { font-size:11px; color:rgba(255,61,113,0.5); display:block; text-align:center; margin-top:1px; }
+
+  /* HEADER */
   header {
     display:flex; align-items:center; justify-content:space-between;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(6,13,16,0.95);
-    backdrop-filter: blur(10px);
-    position: sticky; top:0; z-index:100;
+    padding:16px 24px;
+    border-bottom:1px solid var(--border);
+    background:rgba(6,13,16,0.95);
+    backdrop-filter:blur(10px);
+    position:sticky; top:0; z-index:100;
   }
-
-  .logo {
-    display:flex; align-items:center; gap:12px;
-  }
-
+  .logo { display:flex; align-items:center; gap:12px; }
   .logo-icon {
     width:36px; height:36px;
-    border: 1.5px solid var(--accent);
-    border-radius: 6px;
+    border:1.5px solid var(--accent); border-radius:6px;
     display:flex; align-items:center; justify-content:center;
-    box-shadow: var(--glow), inset 0 0 10px rgba(0,229,255,0.1);
-    position:relative;
-    overflow:hidden;
+    box-shadow:var(--glow),inset 0 0 10px rgba(0,229,255,0.1);
+    position:relative; overflow:hidden;
   }
-
   .logo-icon::after {
-    content:'';
-    position:absolute; inset:0;
-    background: linear-gradient(135deg, rgba(0,229,255,0.15), transparent);
-    animation: shimmer 3s ease-in-out infinite alternate;
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg,rgba(0,229,255,0.15),transparent);
+    animation:shimmer 3s ease-in-out infinite alternate;
   }
-
-  @keyframes shimmer {
-    from { opacity:0.3; }
-    to   { opacity:1; }
-  }
-
+  @keyframes shimmer { from{opacity:0.3} to{opacity:1} }
   .logo-icon svg { width:18px; height:18px; fill:var(--accent); position:relative; z-index:1; }
-
-  .logo-text {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 18px;
-    letter-spacing: 4px;
-    color: var(--accent);
-    text-shadow: 0 0 20px rgba(0,229,255,0.5);
-  }
-
-  .logo-sub {
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: var(--dim);
-    text-transform:uppercase;
-    margin-top:1px;
-  }
-
+  .logo-text { font-family:'Share Tech Mono',monospace; font-size:18px; letter-spacing:4px; color:var(--accent); text-shadow:0 0 20px rgba(0,229,255,0.5); }
+  .logo-sub { font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-top:1px; }
   .header-right { display:flex; align-items:center; gap:16px; }
-
   .status-pill {
     display:flex; align-items:center; gap:6px;
-    padding: 5px 12px;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 1px;
+    padding:5px 12px;
+    border:1px solid var(--border); border-radius:20px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:1px;
   }
-
-  .status-pill.online  { border-color: var(--accent3); color: var(--accent3); }
-  .status-pill.offline { border-color: var(--accent2); color: var(--accent2); }
-  .status-pill.loading { border-color: var(--dim);     color: var(--dim); }
-
-  .pulse {
-    width:7px; height:7px; border-radius:50%;
-    background: currentColor;
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%,100% { opacity:1; transform:scale(1); }
-    50%      { opacity:0.4; transform:scale(0.7); }
-  }
-
+  .status-pill.online  { border-color:var(--accent3); color:var(--accent3); }
+  .status-pill.offline { border-color:var(--accent2); color:var(--accent2); }
+  .status-pill.warning { border-color:var(--warn);    color:var(--warn); }
+  .status-pill.loading { border-color:var(--dim);     color:var(--dim); }
+  .pulse { width:7px; height:7px; border-radius:50%; background:currentColor; animation:pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
   .refresh-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--dim);
-    padding: 5px 10px;
-    border-radius: 4px;
-    cursor:pointer;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    letter-spacing:1px;
-    transition: all 0.2s;
+    background:transparent; border:1px solid var(--border);
+    color:var(--dim); padding:5px 10px; border-radius:4px;
+    cursor:pointer; font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:1px; transition:all 0.2s;
   }
   .refresh-btn:hover { border-color:var(--accent); color:var(--accent); box-shadow:var(--glow); }
+  .refresh-btn.spinning { animation:spin 0.6s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
 
-  /* ── LAYOUT ── */
+  /* LAYOUT */
   .main {
     display:grid;
-    grid-template-columns: 320px 1fr;
-    grid-template-rows: 1fr;
+    grid-template-columns:320px 1fr;
     flex:1;
-    height: calc(100vh - 65px);
+    height:calc(100vh - 65px);
   }
 
-  /* ── SIDEBAR ── */
+  /* SIDEBAR */
   .sidebar {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    overflow-y: auto;
+    background:var(--surface);
+    border-right:1px solid var(--border);
+    overflow-y:auto;
     display:flex; flex-direction:column; gap:1px;
   }
-
   .sidebar::-webkit-scrollbar { width:3px; }
-  .sidebar::-webkit-scrollbar-track { background: var(--bg); }
-  .sidebar::-webkit-scrollbar-thumb { background: var(--border); }
-
-  .panel {
-    background: var(--panel);
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
+  .sidebar::-webkit-scrollbar-track { background:var(--bg); }
+  .sidebar::-webkit-scrollbar-thumb { background:var(--border); }
+  .panel { background:var(--panel); padding:16px; border-bottom:1px solid var(--border); }
   .panel-label {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: var(--dim);
-    text-transform: uppercase;
-    margin-bottom: 12px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px; letter-spacing:3px; color:var(--dim);
+    text-transform:uppercase; margin-bottom:12px;
     display:flex; align-items:center; gap:8px;
   }
+  .panel-label::after { content:''; flex:1; height:1px; background:var(--border); }
 
-  .panel-label::after {
-    content:'';
-    flex:1; height:1px;
-    background: var(--border);
+  /* Offline detail panel in sidebar */
+  #offlineDetailPanel {
+    background: rgba(255,61,113,0.06);
+    border: 1px solid rgba(255,61,113,0.2);
+    border-radius:6px;
+    padding:12px;
+    display:none;
+    margin-bottom:12px;
   }
-
-  /* Coords panel */
-  .coord-block {
-    display:grid; grid-template-columns:1fr 1fr; gap:8px;
-    margin-bottom:8px;
+  #offlineDetailPanel.show { display:block; }
+  .od-title {
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:2px;
+    color:var(--accent2); margin-bottom:8px;
   }
-
-  .coord-item { }
-
-  .coord-key {
-    font-size:10px; letter-spacing:2px;
-    color:var(--dim); text-transform:uppercase;
-    margin-bottom:3px;
+  .od-row {
+    display:flex; justify-content:space-between;
+    font-size:12px; padding:4px 0;
+    border-bottom:1px solid rgba(255,61,113,0.1);
   }
+  .od-row:last-child { border-bottom:none; }
+  .od-key { color:rgba(255,61,113,0.5); }
+  .od-val { font-family:'Share Tech Mono',monospace; color:var(--accent2); font-size:11px; }
+  .od-val.good { color:var(--accent3); }
 
-  .coord-val {
-    font-family:'Share Tech Mono', monospace;
-    font-size:15px;
-    color:var(--accent);
-    text-shadow: 0 0 10px rgba(0,229,255,0.3);
-  }
-
-  .coord-val.full { grid-column: 1/-1; font-size:13px; color:var(--text); }
-
-  .accuracy-bar-wrap {
-    margin-top:10px;
-  }
-
+  /* Coords */
+  .coord-block { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+  .coord-key { font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-bottom:3px; }
+  .coord-val { font-family:'Share Tech Mono',monospace; font-size:15px; color:var(--accent); text-shadow:0 0 10px rgba(0,229,255,0.3); }
+  .coord-val.full { grid-column:1/-1; font-size:13px; color:var(--text); }
+  .accuracy-bar-wrap { margin-top:10px; }
   .accuracy-bar-label {
     display:flex; justify-content:space-between;
-    font-size:11px; color:var(--dim);
-    margin-bottom:4px;
-    font-family:'Share Tech Mono', monospace;
+    font-size:11px; color:var(--dim); margin-bottom:4px;
+    font-family:'Share Tech Mono',monospace;
   }
-
-  .accuracy-bar {
-    height:3px; background:var(--border); border-radius:2px; overflow:hidden;
-  }
-
+  .accuracy-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
   .accuracy-fill {
     height:100%;
-    background: linear-gradient(90deg, var(--accent3), var(--accent));
-    border-radius:2px;
-    transition: width 1s ease;
+    background:linear-gradient(90deg,var(--accent3),var(--accent));
+    border-radius:2px; transition:width 1s ease;
   }
 
-  /* Device info */
+  /* Info rows */
   .info-row {
     display:flex; justify-content:space-between; align-items:center;
-    padding: 7px 0;
-    border-bottom: 1px solid rgba(15,40,48,0.8);
-    font-size:13px;
+    padding:7px 0; border-bottom:1px solid rgba(15,40,48,0.8); font-size:13px;
   }
-
   .info-row:last-child { border-bottom:none; }
   .info-key { color:var(--dim); letter-spacing:1px; font-size:12px; }
-  .info-val {
-    font-family:'Share Tech Mono', monospace;
-    font-size:12px;
-    color:var(--text);
-    text-align:right;
-  }
-
-  .info-val.good  { color:var(--accent3); }
-  .info-val.warn  { color:#ffcc00; }
-  .info-val.bad   { color:var(--accent2); }
+  .info-val { font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--text); text-align:right; }
+  .info-val.good { color:var(--accent3); }
+  .info-val.warn { color:var(--warn); }
+  .info-val.bad  { color:var(--accent2); }
 
   /* Timeline */
-  .timeline { display:flex; flex-direction:column; gap:0; }
-
   .tl-item {
     display:flex; gap:10px; align-items:flex-start;
-    padding:10px 0;
-    border-bottom: 1px solid rgba(15,40,48,0.5);
-    cursor:pointer;
-    transition: background 0.15s;
-    border-radius:4px;
-    padding: 8px 6px;
+    padding:8px 6px; border-bottom:1px solid rgba(15,40,48,0.5);
+    cursor:pointer; border-radius:4px; transition:background 0.15s;
   }
-
-  .tl-item:hover { background: rgba(0,229,255,0.04); }
-  .tl-item.active { background: rgba(0,229,255,0.08); }
-
+  .tl-item:hover { background:rgba(0,229,255,0.04); }
+  .tl-item.active { background:rgba(0,229,255,0.08); }
   .tl-dot {
     width:8px; height:8px; border-radius:50%;
     background:var(--dim); margin-top:4px; flex-shrink:0;
-    border: 2px solid var(--border);
-    transition: all 0.2s;
+    border:2px solid var(--border); transition:all 0.2s;
   }
-
-  .tl-item.active .tl-dot,
-  .tl-item:first-child .tl-dot {
-    background:var(--accent);
-    border-color:var(--accent);
-    box-shadow: 0 0 8px rgba(0,229,255,0.5);
+  .tl-item.active .tl-dot,.tl-item:first-child .tl-dot {
+    background:var(--accent); border-color:var(--accent);
+    box-shadow:0 0 8px rgba(0,229,255,0.5);
   }
-
   .tl-content { flex:1; }
+  .tl-time { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--accent); margin-bottom:2px; }
+  .tl-coords { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--dim); }
+  .tl-acc { font-size:10px; color:var(--dim); margin-top:1px; }
+  .tl-empty { font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--dim); text-align:center; padding:20px 0; }
 
-  .tl-time {
-    font-family:'Share Tech Mono', monospace;
-    font-size:11px;
-    color:var(--accent);
-    margin-bottom:2px;
-  }
-
-  .tl-coords {
-    font-family:'Share Tech Mono', monospace;
-    font-size:11px;
-    color:var(--dim);
-  }
-
-  .tl-acc {
-    font-size:10px;
-    color:var(--dim);
-    margin-top:1px;
-  }
-
-  .tl-empty {
-    font-family:'Share Tech Mono', monospace;
-    font-size:12px;
-    color:var(--dim);
-    text-align:center;
-    padding:20px 0;
-  }
-
-  /* ── MAP ── */
-  #map {
-    width:100%; height:100%;
-    background: var(--bg);
-  }
-
-  /* Leaflet dark overrides */
+  /* Map */
+  #map { width:100%; height:100%; background:var(--bg); }
   .leaflet-container { background:#020608 !important; }
-
-  .leaflet-tile-pane { filter: brightness(0.35) saturate(0.3) hue-rotate(180deg); }
-
-  .leaflet-control-zoom a {
-    background: var(--panel) !important;
-    color: var(--accent) !important;
-    border-color: var(--border) !important;
-    font-family:'Share Tech Mono', monospace !important;
-  }
-
-  .leaflet-control-zoom a:hover {
-    background: var(--border) !important;
-  }
-
-  .leaflet-control-attribution {
-    background: rgba(6,13,16,0.8) !important;
-    color: var(--dim) !important;
-    font-size:9px !important;
-  }
-
+  .leaflet-tile-pane { filter:brightness(0.35) saturate(0.3) hue-rotate(180deg); }
+  .leaflet-control-zoom a { background:var(--panel) !important; color:var(--accent) !important; border-color:var(--border) !important; }
+  .leaflet-control-attribution { background:rgba(6,13,16,0.8) !important; color:var(--dim) !important; font-size:9px !important; }
   .leaflet-control-attribution a { color:var(--dim) !important; }
-
-  /* Custom marker */
-  .phantom-marker {
-    position:relative;
-    display:flex; align-items:center; justify-content:center;
-  }
-
   .marker-core {
-    width:14px; height:14px;
-    background:var(--accent2);
-    border-radius:50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 3px rgba(255,61,113,0.3), 0 0 20px rgba(255,61,113,0.5);
-    animation: markerPulse 2s ease-in-out infinite;
-    position:relative; z-index:2;
+    width:14px; height:14px; background:var(--accent2); border-radius:50%;
+    border:2px solid #fff;
+    box-shadow:0 0 0 3px rgba(255,61,113,0.3),0 0 20px rgba(255,61,113,0.5);
+    animation:markerPulse 2s ease-in-out infinite;
   }
-
   @keyframes markerPulse {
-    0%,100% { box-shadow: 0 0 0 3px rgba(255,61,113,0.3), 0 0 20px rgba(255,61,113,0.5); }
-    50%      { box-shadow: 0 0 0 8px rgba(255,61,113,0.1), 0 0 30px rgba(255,61,113,0.7); }
+    0%,100%{ box-shadow:0 0 0 3px rgba(255,61,113,0.3),0 0 20px rgba(255,61,113,0.5); }
+    50%    { box-shadow:0 0 0 8px rgba(255,61,113,0.1),0 0 30px rgba(255,61,113,0.7); }
+  }
+  .marker-core.stale {
+    background:var(--warn);
+    box-shadow:0 0 0 3px rgba(255,204,0,0.3),0 0 20px rgba(255,204,0,0.4);
+    animation:none;
   }
 
-  /* Map overlay — top info bar */
+  /* Map overlay */
   .map-overlay {
-    position:absolute;
-    top:12px; left:50%; transform:translateX(-50%);
-    z-index:500;
-    background: rgba(6,13,16,0.92);
-    border: 1px solid var(--border);
-    border-radius:6px;
-    padding:8px 16px;
-    display:flex; align-items:center; gap:16px;
-    backdrop-filter: blur(10px);
-    font-family:'Share Tech Mono', monospace;
-    font-size:11px;
-    color:var(--dim);
-    white-space:nowrap;
-    box-shadow: var(--glow);
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    z-index:500; background:rgba(6,13,16,0.92);
+    border:1px solid var(--border); border-radius:6px;
+    padding:8px 16px; display:flex; align-items:center; gap:16px;
+    backdrop-filter:blur(10px);
+    font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--dim);
+    white-space:nowrap; box-shadow:var(--glow);
+  }
+  .map-overlay span { color:var(--accent); }
+  .map-overlay.stale { border-color:rgba(255,61,113,0.4); }
+  .map-overlay.stale span { color:var(--accent2); }
+
+  /* Offline map overlay */
+  #mapOfflineOverlay {
+    position:absolute; inset:0; z-index:400;
+    background:rgba(2,6,8,0.7);
+    display:none; align-items:center; justify-content:center;
+    backdrop-filter:blur(2px);
+  }
+  #mapOfflineOverlay.show { display:flex; }
+  .offline-map-card {
+    background:rgba(6,13,16,0.95);
+    border:1px solid rgba(255,61,113,0.4);
+    border-radius:8px; padding:28px 36px;
+    text-align:center;
+    box-shadow:0 0 40px rgba(255,61,113,0.15);
+  }
+  .offline-map-icon {
+    font-size:40px; margin-bottom:12px;
+    animation:iconFloat 3s ease-in-out infinite;
+  }
+  @keyframes iconFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  .offline-map-title {
+    font-family:'Share Tech Mono',monospace;
+    font-size:16px; letter-spacing:4px;
+    color:var(--accent2); margin-bottom:6px;
+    text-shadow:0 0 20px rgba(255,61,113,0.5);
+  }
+  .offline-map-sub { font-size:13px; color:var(--dim); letter-spacing:1px; margin-bottom:16px; }
+  .offline-map-timer {
+    font-family:'Share Tech Mono',monospace;
+    font-size:32px; color:var(--accent2);
+    text-shadow:0 0 20px rgba(255,61,113,0.6);
+  }
+  .offline-map-timer-label { font-size:11px; color:rgba(255,61,113,0.4); letter-spacing:2px; margin-top:2px; }
+  .offline-last-loc {
+    margin-top:14px; padding-top:14px;
+    border-top:1px solid rgba(255,61,113,0.2);
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; color:rgba(255,61,113,0.5);
+    line-height:1.8;
   }
 
-  .map-overlay span { color:var(--accent); }
-
-  /* Loading state */
+  /* Loading */
   .loading-overlay {
-    position:absolute; inset:0;
-    background:var(--bg);
+    position:absolute; inset:0; background:var(--bg);
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
-    z-index:200;
-    gap:16px;
+    z-index:200; gap:16px;
   }
-
   .loading-overlay.hidden { display:none; }
-
-  .loader-ring {
-    width:48px; height:48px;
-    border:2px solid var(--border);
-    border-top-color:var(--accent);
-    border-radius:50%;
-    animation:spin 0.8s linear infinite;
-  }
-
-  @keyframes spin { to { transform:rotate(360deg); } }
-
-  .loader-text {
-    font-family:'Share Tech Mono', monospace;
-    font-size:12px;
-    letter-spacing:3px;
-    color:var(--dim);
-    animation: blink 1.5s ease-in-out infinite;
-  }
-
+  .loader-ring { width:48px; height:48px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+  .loader-text { font-family:'Share Tech Mono',monospace; font-size:12px; letter-spacing:3px; color:var(--dim); animation:blink 1.5s ease-in-out infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  /* Error state */
-  .error-box {
-    background: rgba(255,61,113,0.08);
-    border: 1px solid rgba(255,61,113,0.3);
-    border-radius:6px;
-    padding:12px;
-    font-family:'Share Tech Mono', monospace;
-    font-size:11px;
-    color:var(--accent2);
-    line-height:1.6;
-    display:none;
-  }
-
   /* Countdown */
-  .countdown-bar {
-    height:2px;
-    background:var(--border);
-    position:fixed; bottom:0; left:0; right:0;
-    z-index:200;
+  .countdown-bar { height:2px; background:var(--border); position:fixed; bottom:0; left:0; right:0; z-index:200; }
+  .countdown-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent3)); transition:width 0.1s linear; box-shadow:0 0 8px rgba(0,229,255,0.5); }
+
+  /* Error */
+  .error-box {
+    background:rgba(255,61,113,0.08); border:1px solid rgba(255,61,113,0.3);
+    border-radius:6px; padding:12px;
+    font-family:'Share Tech Mono',monospace; font-size:11px;
+    color:var(--accent2); line-height:1.6; display:none; margin-bottom:8px;
   }
 
-  .countdown-fill {
-    height:100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent3));
-    transition: width 1s linear;
-    box-shadow: 0 0 8px rgba(0,229,255,0.5);
-  }
-
-  /* Responsive */
-  @media (max-width: 700px) {
-    .main { grid-template-columns:1fr; grid-template-rows: auto 50vh; }
+  @media(max-width:700px) {
+    .main { grid-template-columns:1fr; grid-template-rows:auto 50vh; }
     .sidebar { max-height:280px; }
     header { padding:12px 16px; }
     .logo-text { font-size:14px; letter-spacing:3px; }
-    .map-overlay { font-size:10px; gap:10px; padding:6px 10px; }
   }
 </style>
 </head>
 <body>
 <div class="shell">
 
+  <!-- OFFLINE ALERT BANNER -->
+  <div id="offlineBanner">
+    <div class="banner-icon">⚠</div>
+    <div class="banner-content">
+      <div class="banner-title">⚠ DEVICE OFFLINE — SIGNAL LOST</div>
+      <div class="banner-sub" id="bannerSub">Last contact: unknown</div>
+    </div>
+    <div class="offline-timer" id="offlineTimer">
+      00:00<span>OFFLINE DURATION</span>
+    </div>
+    <div class="banner-actions">
+      <button class="banner-btn primary" onclick="fetchLocation()">⟳ RETRY</button>
+      <a id="lastMapsBtn" href="#" target="_blank">
+        <button class="banner-btn">📍 LAST LOCATION</button>
+      </a>
+    </div>
+  </div>
+
   <!-- HEADER -->
   <header>
     <div class="logo">
       <div class="logo-icon">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-        </svg>
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
       </div>
       <div>
         <div class="logo-text">PHANTOM</div>
@@ -488,7 +412,7 @@
         <div class="pulse"></div>
         <span id="statusText">CONNECTING</span>
       </div>
-      <button class="refresh-btn" onclick="fetchLocation()">⟳ REFRESH</button>
+      <button class="refresh-btn" id="refreshBtn" onclick="fetchLocation()">⟳ REFRESH</button>
     </div>
   </header>
 
@@ -501,16 +425,42 @@
       <!-- Coordinates -->
       <div class="panel">
         <div class="panel-label">Last Known Position</div>
+
+        <!-- Offline detail in sidebar -->
+        <div id="offlineDetailPanel">
+          <div class="od-title">⚠ DEVICE OFFLINE</div>
+          <div class="od-row">
+            <span class="od-key">Last Contact</span>
+            <span class="od-val" id="odLastContact">—</span>
+          </div>
+          <div class="od-row">
+            <span class="od-key">Offline Duration</span>
+            <span class="od-val" id="odDuration">—</span>
+          </div>
+          <div class="od-row">
+            <span class="od-key">BLE Beacon</span>
+            <span class="od-val good">ACTIVE</span>
+          </div>
+          <div class="od-row">
+            <span class="od-key">Google FMD</span>
+            <span class="od-val good">BROADCASTING</span>
+          </div>
+          <div class="od-row">
+            <span class="od-key">Last GPS Fix</span>
+            <span class="od-val" id="odLastGPS">—</span>
+          </div>
+        </div>
+
         <div class="coord-block">
-          <div class="coord-item">
+          <div>
             <div class="coord-key">Latitude</div>
             <div class="coord-val" id="lat">—</div>
           </div>
-          <div class="coord-item">
+          <div>
             <div class="coord-key">Longitude</div>
             <div class="coord-val" id="lon">—</div>
           </div>
-          <div class="coord-item coord-val full" style="margin-top:4px">
+          <div class="coord-val full" style="margin-top:4px">
             <div class="coord-key">Maps Link</div>
             <a id="mapsLink" href="#" target="_blank"
                style="color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:12px;text-decoration:none;">
@@ -542,6 +492,10 @@
           <span class="info-val" id="lastSeen">—</span>
         </div>
         <div class="info-row">
+          <span class="info-key">STATUS</span>
+          <span class="info-val" id="deviceStatusVal">—</span>
+        </div>
+        <div class="info-row">
           <span class="info-key">UPDATED UTC</span>
           <span class="info-val" id="updatedUtc">—</span>
         </div>
@@ -551,16 +505,14 @@
         </div>
         <div class="info-row">
           <span class="info-key">NEXT REFRESH</span>
-          <span class="info-val" id="nextRefresh">5:00</span>
+          <span class="info-val" id="nextRefresh">2s</span>
         </div>
       </div>
 
       <!-- Timeline -->
       <div class="panel" style="flex:1">
         <div class="panel-label">Location History</div>
-        <div class="timeline" id="timeline">
-          <div class="tl-empty">No history yet</div>
-        </div>
+        <div id="timeline"><div class="tl-empty">No history yet</div></div>
       </div>
 
     </div>
@@ -571,10 +523,22 @@
 
       <div class="map-overlay" id="mapOverlay">
         <span id="overlayCoords">Acquiring signal...</span>
-        &nbsp;|&nbsp;
-        ACC <span id="overlayAcc">—</span>m
-        &nbsp;|&nbsp;
-        <span id="overlayTime">—</span>
+        &nbsp;|&nbsp; ACC <span id="overlayAcc">—</span>m
+        &nbsp;|&nbsp; <span id="overlayTime">—</span>
+      </div>
+
+      <!-- Offline map overlay -->
+      <div id="mapOfflineOverlay">
+        <div class="offline-map-card">
+          <div class="offline-map-icon">📡</div>
+          <div class="offline-map-title">SIGNAL LOST</div>
+          <div class="offline-map-sub">Device has gone offline</div>
+          <div class="offline-map-timer" id="mapOfflineTimer">00:00</div>
+          <div class="offline-map-timer-label">OFFLINE DURATION</div>
+          <div class="offline-last-loc" id="mapOfflineLastLoc">
+            Last known position shown on map
+          </div>
+        </div>
       </div>
 
       <div class="loading-overlay" id="loadingOverlay">
@@ -585,7 +549,6 @@
 
   </div>
 
-  <!-- Countdown bar -->
   <div class="countdown-bar">
     <div class="countdown-fill" id="countdownFill" style="width:100%"></div>
   </div>
@@ -594,214 +557,258 @@
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────
-const GITHUB_USER   = 'franc417';
-const GITHUB_REPO   = 'phantom-data';
-const REFRESH_SECS  = 300; // 5 minutes
-const MAX_HISTORY   = 20;
+const GITHUB_USER    = 'franc417';
+const GITHUB_REPO    = 'phantom-data';
+const REFRESH_MS     = 2000;          // 2 second refresh
+const OFFLINE_THRESH = 20 * 60 * 1000; // 20 minutes = offline
 
 // ── STATE ─────────────────────────────────────────────────────────
 let map, marker, accuracyCircle;
 let history = JSON.parse(localStorage.getItem('phantom_history') || '[]');
-let countdown = REFRESH_SECS;
-let countdownTimer, refreshTimer;
+let countdownTimer, offlineDurationTimer;
+let lastUpdateTime = null;
+let isOffline = false;
+let lastLocation = null;
 
-// ── MAP INIT ──────────────────────────────────────────────────────
+// ── MAP ───────────────────────────────────────────────────────────
 function initMap() {
-  map = L.map('map', {
-    center: [0, 20],
-    zoom: 3,
-    zoomControl: true,
-    attributionControl: true,
-  });
-
+  map = L.map('map', { center:[0,20], zoom:3, zoomControl:true });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap',
-    maxZoom: 19,
+    attribution:'© OpenStreetMap', maxZoom:19
   }).addTo(map);
 }
 
-// ── CUSTOM MARKER ─────────────────────────────────────────────────
-function buildMarkerIcon() {
+function buildMarkerIcon(stale=false) {
   return L.divIcon({
-    className: '',
-    html: `<div class="phantom-marker"><div class="marker-core"></div></div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    className:'',
+    html:`<div class="marker-core${stale?' stale':''}"></div>`,
+    iconSize:[14,14], iconAnchor:[7,7]
   });
 }
 
-// ── FETCH LOCATION ────────────────────────────────────────────────
+// ── FETCH ─────────────────────────────────────────────────────────
 async function fetchLocation() {
-  setStatus('loading', 'CONNECTING');
-  document.getElementById('loadingOverlay').classList.remove('hidden');
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
 
   const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/location.json`;
-
   try {
     const res = await fetch(url, {
-      headers: { 'Accept': 'application/vnd.github.v3+json' },
-      cache: 'no-store',
+      headers:{'Accept':'application/vnd.github.v3+json'},
+      cache:'no-store'
     });
-
-    if (!res.ok) throw new Error(`GitHub API ${res.status}: ${res.statusText}`);
-
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const data = await res.json();
-    const decoded = JSON.parse(atob(data.content));
-    processLocation(decoded);
-
-  } catch (err) {
+    const loc  = JSON.parse(atob(data.content));
+    processLocation(loc);
+    hideError();
+  } catch(err) {
     showError(err.message);
-    setStatus('offline', 'OFFLINE');
+    // If we had a previous location, check if device went offline
+    if (lastLocation) checkOfflineStatus();
+    else setStatus('offline','OFFLINE');
   } finally {
+    btn.classList.remove('spinning');
     document.getElementById('loadingOverlay').classList.add('hidden');
-    resetCountdown();
   }
 }
 
-// ── PROCESS LOCATION ──────────────────────────────────────────────
+// ── PROCESS ───────────────────────────────────────────────────────
 function processLocation(loc) {
   const lat = parseFloat(loc.latitude);
   const lon = parseFloat(loc.longitude);
   const acc = parseFloat(loc.accuracy) || 0;
 
-  if (isNaN(lat) || isNaN(lon)) {
-    showError('Invalid coordinates in data');
-    setStatus('offline', 'BAD DATA');
-    return;
+  if (isNaN(lat)||isNaN(lon)) { showError('Invalid coordinates'); return; }
+
+  lastLocation = loc;
+
+  // Parse last update time
+  const updatedStr = loc.updated_utc || loc.timestamp;
+  const updatedDate = updatedStr ? new Date(updatedStr) : null;
+  lastUpdateTime = updatedDate;
+
+  // Check if device is stale/offline
+  const now = Date.now();
+  const age = updatedDate ? (now - updatedDate.getTime()) : Infinity;
+  const stale = age > OFFLINE_THRESH;
+
+  if (stale) {
+    triggerOfflineState(loc, age);
+  } else {
+    clearOfflineState();
+    setStatus('online','TRACKING');
   }
 
-  hideError();
-  setStatus('online', 'TRACKING');
-
-  // Update sidebar coords
-  document.getElementById('lat').textContent        = lat.toFixed(6);
-  document.getElementById('lon').textContent        = lon.toFixed(6);
-  document.getElementById('accVal').textContent     = `±${acc.toFixed(0)}m`;
-  document.getElementById('devName').textContent    = loc.device || 'Unknown';
-  document.getElementById('lastSeen').textContent   = loc.timestamp || '—';
-  document.getElementById('updatedUtc').textContent = loc.updated_utc || '—';
+  // Update coords
+  document.getElementById('lat').textContent      = lat.toFixed(6);
+  document.getElementById('lon').textContent       = lon.toFixed(6);
+  document.getElementById('accVal').textContent    = `±${acc.toFixed(0)}m`;
+  document.getElementById('devName').textContent   = loc.device || 'Unknown';
+  document.getElementById('lastSeen').textContent  = loc.timestamp || '—';
+  document.getElementById('updatedUtc').textContent= loc.updated_utc || '—';
+  document.getElementById('deviceStatusVal').textContent = stale ? 'OFFLINE' : 'ONLINE';
+  document.getElementById('deviceStatusVal').className   = `info-val ${stale?'bad':'good'}`;
 
   // Maps link
   const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`;
-  const mapsEl  = document.getElementById('mapsLink');
-  mapsEl.href   = mapsUrl;
-  mapsEl.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  const ml = document.getElementById('mapsLink');
+  ml.href = mapsUrl; ml.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  document.getElementById('lastMapsBtn').href = mapsUrl;
 
-  // Accuracy bar (0m = 100%, 500m = 0%)
-  const barPct = Math.max(0, Math.min(100, 100 - (acc / 500) * 100));
-  document.getElementById('accBar').style.width = barPct + '%';
+  // Accuracy bar
+  const pct = Math.max(0, Math.min(100, 100-(acc/500)*100));
+  document.getElementById('accBar').style.width = pct+'%';
 
   // Map overlay
   document.getElementById('overlayCoords').textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   document.getElementById('overlayAcc').textContent    = acc.toFixed(0);
   document.getElementById('overlayTime').textContent   = loc.timestamp || '—';
+  document.getElementById('mapOverlay').className      = `map-overlay${stale?' stale':''}`;
 
-  // Update map marker
+  // Marker
   if (!marker) {
-    marker = L.marker([lat, lon], { icon: buildMarkerIcon() }).addTo(map);
+    marker = L.marker([lat,lon],{icon:buildMarkerIcon(stale)}).addTo(map);
   } else {
-    marker.setLatLng([lat, lon]);
+    marker.setLatLng([lat,lon]);
+    marker.setIcon(buildMarkerIcon(stale));
   }
 
   if (accuracyCircle) {
-    accuracyCircle.setLatLng([lat, lon]).setRadius(acc);
+    accuracyCircle.setLatLng([lat,lon]).setRadius(acc);
   } else {
-    accuracyCircle = L.circle([lat, lon], {
-      radius: acc,
-      color: '#00e5ff',
-      fillColor: '#00e5ff',
-      fillOpacity: 0.06,
-      weight: 1,
-      dashArray: '4 4',
+    accuracyCircle = L.circle([lat,lon],{
+      radius:acc, color:'#00e5ff', fillColor:'#00e5ff',
+      fillOpacity:0.06, weight:1, dashArray:'4 4'
     }).addTo(map);
   }
 
-  map.setView([lat, lon], map.getZoom() < 10 ? 14 : map.getZoom());
+  if (map.getZoom() < 10) map.setView([lat,lon],14);
+  else map.panTo([lat,lon]);
 
-  // Add to history
-  const entry = { lat, lon, acc, timestamp: loc.timestamp, updated: loc.updated_utc };
-  const isDuplicate = history.length > 0 &&
-    history[0].timestamp === entry.timestamp;
-
-  if (!isDuplicate) {
+  // History
+  const entry = {lat,lon,acc,timestamp:loc.timestamp,updated:loc.updated_utc};
+  const dup = history.length>0 && history[0].timestamp===entry.timestamp;
+  if (!dup) {
     history.unshift(entry);
-    if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
-    localStorage.setItem('phantom_history', JSON.stringify(history));
+    if (history.length>20) history=history.slice(0,20);
+    localStorage.setItem('phantom_history',JSON.stringify(history));
   }
-
   renderTimeline();
 }
 
-// ── TIMELINE ──────────────────────────────────────────────────────
-function renderTimeline() {
-  const el = document.getElementById('timeline');
-  if (!history.length) {
-    el.innerHTML = '<div class="tl-empty">No history yet</div>';
-    return;
-  }
+// ── OFFLINE STATE ─────────────────────────────────────────────────
+function triggerOfflineState(loc, ageMs) {
+  isOffline = true;
+  setStatus('offline','OFFLINE');
 
-  el.innerHTML = history.map((h, i) => `
-    <div class="tl-item ${i === 0 ? 'active' : ''}" onclick="flyTo(${h.lat},${h.lon},${h.acc})">
-      <div class="tl-dot"></div>
-      <div class="tl-content">
-        <div class="tl-time">${h.timestamp || h.updated || '—'}</div>
-        <div class="tl-coords">${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</div>
-        <div class="tl-acc">±${(h.acc||0).toFixed(0)}m accuracy</div>
-      </div>
-    </div>
-  `).join('');
+  // Banner
+  document.getElementById('offlineBanner').classList.add('show');
+  document.getElementById('bannerSub').textContent =
+    `Last contact: ${loc.timestamp || '—'} | BLE beacon active`;
+
+  // Sidebar offline panel
+  document.getElementById('offlineDetailPanel').classList.add('show');
+  document.getElementById('odLastContact').textContent  = loc.timestamp || '—';
+  document.getElementById('odLastGPS').textContent      = `${parseFloat(loc.latitude).toFixed(5)}, ${parseFloat(loc.longitude).toFixed(5)}`;
+
+  // Map offline overlay
+  document.getElementById('mapOfflineOverlay').classList.add('show');
+  document.getElementById('mapOfflineLastLoc').textContent =
+    `Last fix: ${parseFloat(loc.latitude).toFixed(5)}, ${parseFloat(loc.longitude).toFixed(5)}`;
+
+  // Start offline duration counters
+  clearInterval(offlineDurationTimer);
+  const offlineSince = Date.now() - ageMs;
+  offlineDurationTimer = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - offlineSince) / 1000);
+    const h = Math.floor(elapsed/3600);
+    const m = Math.floor((elapsed%3600)/60);
+    const s = elapsed%60;
+    const fmt = h>0
+      ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+      : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    document.getElementById('offlineTimer').innerHTML    = `${fmt}<span>OFFLINE DURATION</span>`;
+    document.getElementById('mapOfflineTimer').textContent = fmt;
+    document.getElementById('odDuration').textContent     = fmt;
+  }, 1000);
 }
 
-function flyTo(lat, lon, acc) {
-  map.flyTo([lat, lon], 15, { animate:true, duration:1 });
+function clearOfflineState() {
+  isOffline = false;
+  document.getElementById('offlineBanner').classList.remove('show');
+  document.getElementById('offlineDetailPanel').classList.remove('show');
+  document.getElementById('mapOfflineOverlay').classList.remove('show');
+  clearInterval(offlineDurationTimer);
+}
+
+function checkOfflineStatus() {
+  if (!lastLocation) return;
+  const updatedStr = lastLocation.updated_utc || lastLocation.timestamp;
+  const updatedDate = updatedStr ? new Date(updatedStr) : null;
+  const age = updatedDate ? (Date.now()-updatedDate.getTime()) : Infinity;
+  if (age > OFFLINE_THRESH) {
+    triggerOfflineState(lastLocation, age);
+  }
 }
 
 // ── STATUS ────────────────────────────────────────────────────────
 function setStatus(type, text) {
   const pill = document.getElementById('statusPill');
-  const txt  = document.getElementById('statusText');
   pill.className = `status-pill ${type}`;
-  txt.textContent = text;
+  document.getElementById('statusText').textContent = text;
 }
 
-// ── ERROR ─────────────────────────────────────────────────────────
 function showError(msg) {
   const el = document.getElementById('errorBox');
-  el.style.display = 'block';
-  el.textContent = `ERR: ${msg}`;
+  el.style.display='block'; el.textContent=`ERR: ${msg}`;
 }
-
 function hideError() {
-  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('errorBox').style.display='none';
 }
 
-// ── COUNTDOWN ─────────────────────────────────────────────────────
-function resetCountdown() {
+// ── TIMELINE ──────────────────────────────────────────────────────
+function renderTimeline() {
+  const el = document.getElementById('timeline');
+  if (!history.length) { el.innerHTML='<div class="tl-empty">No history yet</div>'; return; }
+  el.innerHTML = history.map((h,i)=>`
+    <div class="tl-item ${i===0?'active':''}" onclick="flyTo(${h.lat},${h.lon})">
+      <div class="tl-dot"></div>
+      <div class="tl-content">
+        <div class="tl-time">${h.timestamp||h.updated||'—'}</div>
+        <div class="tl-coords">${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</div>
+        <div class="tl-acc">±${(h.acc||0).toFixed(0)}m accuracy</div>
+      </div>
+    </div>`).join('');
+}
+
+function flyTo(lat,lon) {
+  map.flyTo([lat,lon],15,{animate:true,duration:1});
+}
+
+// ── COUNTDOWN — 2 second refresh ─────────────────────────────────
+function startCountdown() {
   clearInterval(countdownTimer);
-  clearTimeout(refreshTimer);
-  countdown = REFRESH_SECS;
+  let ms = REFRESH_MS;
+  const fill = document.getElementById('countdownFill');
+  const label = document.getElementById('nextRefresh');
 
   countdownTimer = setInterval(() => {
-    countdown--;
-    const pct = (countdown / REFRESH_SECS) * 100;
-    document.getElementById('countdownFill').style.width = pct + '%';
-
-    const m = Math.floor(countdown / 60);
-    const s = countdown % 60;
-    document.getElementById('nextRefresh').textContent =
-      `${m}:${s.toString().padStart(2,'0')}`;
-
-    if (countdown <= 0) {
+    ms -= 100;
+    fill.style.width = Math.max(0,(ms/REFRESH_MS)*100)+'%';
+    label.textContent = ms > 0 ? (ms/1000).toFixed(1)+'s' : '0.0s';
+    if (ms <= 0) {
       clearInterval(countdownTimer);
-      fetchLocation();
+      fetchLocation().then(startCountdown);
     }
-  }, 1000);
+  }, 100);
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────
 initMap();
 renderTimeline();
-fetchLocation();
+document.getElementById('loadingOverlay').classList.remove('hidden');
+fetchLocation().then(startCountdown);
 </script>
 </body>
 </html>
