@@ -620,8 +620,6 @@
 </div>
 
 <script>
-const GITHUB_USER    = 'franc417';
-const GITHUB_REPO    = 'phantom-data';
 const DEVICE_ID      = 'PHANTOM-01BA4719C80B';
 const REFRESH_MS     = 30000;
 const OFFLINE_THRESH = 20 * 60 * 1000;
@@ -679,15 +677,11 @@ function centerMap() {
 
 async function fetchLocation() {
   if (!tracking) return;
-  const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/location.json`;
+  const url = `/api/location?device_id=${encodeURIComponent(DEVICE_ID)}&history=200`;
   try {
-    const res = await fetch(url, {
-      headers:{'Accept':'application/vnd.github.v3+json'},
-      cache:'no-store'
-    });
-    if (!res.ok) throw new Error(`GitHub ${res.status}`);
-    const data = await res.json();
-    const loc  = JSON.parse(atob(data.content));
+    const res = await fetch(url, { cache:'no-store' });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const loc = await res.json();
 
     // Device ID check
     if (loc.device_id && loc.device_id !== DEVICE_ID) {
