@@ -1,4 +1,5 @@
-import { createClient } from '@vercel/postgres';
+import pg from 'pg';
+const { Client } = pg;
 
 // The device app calls this on every location update:
 //
@@ -14,6 +15,10 @@ import { createClient } from '@vercel/postgres';
 // This route is excluded from the Basic Auth in middleware.js so the
 // device doesn't need to handle a browser-style login prompt — it only
 // needs to know DEVICE_SECRET.
+//
+// Uses plain `pg` over a standard TCP connection instead of
+// @vercel/postgres, which only works against Neon's WebSocket proxy and
+// can't reach Prisma Postgres (or any other non-Neon provider).
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -38,31 +43,32 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'device_id, latitude and longitude are required' });
   }
 
-  // Prisma Postgres's POSTGRES_URL is a direct (non-pooled) connection
-  // string, not the pooler-style string @vercel/postgres's default `sql`
-  // export expects — so we use createClient() with it explicitly instead.
-  const client = createClient({ connectionString: process.env.POSTGRES_URL });
+  const client = new Client({
+    connectionString: process.env.POSTGRES_URL,
+    ssl: { rejectUnauthorized: false },
+  });
 
   try {
     await client.connect();
-    await client.sql`
-      INSERT INTO pings (
+    await client.query(
+      `INSERT INTO pings (
         device_id, device_name, device_model, device_brand, android_ver,
         latitude, longitude, accuracy, provider,
         battery_pct, battery_status, wifi_ssid, wifi_ip, wifi_rssi,
         client_ts
-      ) VALUES (
-        ${device_id}, ${device_name ?? null}, ${device_model ?? null}, ${device_brand ?? null}, ${android_ver ?? null},
-        ${latitude}, ${longitude}, ${accuracy ?? null}, ${provider ?? null},
-        ${battery_pct ?? null}, ${battery_status ?? null}, ${wifi_ssid ?? null}, ${wifi_ip ?? null}, ${wifi_rssi ?? null},
-        ${timestamp ?? null}
-      )
-    `;
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      [
+        device_id, device_name ?? null, device_model ?? null, device_brand ?? null, android_ver ?? null,
+        latitude, longitude, accuracy ?? null, provider ?? null,
+        battery_pct ?? null, battery_status ?? null, wifi_ssid ?? null, wifi_ip ?? null, wifi_rssi ?? null,
+        timestamp ?? null,
+      ]
+    );
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('ping insert failed', err);
     // TEMPORARY: expose the real error for debugging. Remove `detail` once
-    // the connection issue is diagnosed and fixed.
+    // this is confirmed stable.
     return res.status(500).json({ error: 'Server error', detail: String(err && err.message || err) });
   } finally {
     await client.end();
