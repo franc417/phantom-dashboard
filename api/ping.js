@@ -67,9 +67,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('ping insert failed', err);
-    // TEMPORARY: expose the real error for debugging. Remove `detail` once
-    // this is confirmed stable.
-    return res.status(500).json({ error: 'Server error', detail: String(err && err.message || err) });
+    return res.status(500).json({ error: 'Server error' });
   } finally {
     await client.end();
   }
