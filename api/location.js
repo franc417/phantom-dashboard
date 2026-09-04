@@ -1,4 +1,5 @@
-import { createClient } from '@vercel/postgres';
+import pg from 'pg';
+const { Client } = pg;
 
 // The dashboard calls this to read location data:
 //
@@ -23,17 +24,19 @@ export default async function handler(req, res) {
   }
 
   const historyLimit = Math.min(parseInt(req.query.history || '0', 10) || 0, 500);
-  const client = createClient({ connectionString: process.env.POSTGRES_URL });
+
+  const client = new Client({
+    connectionString: process.env.POSTGRES_URL,
+    ssl: { rejectUnauthorized: false },
+  });
 
   try {
     await client.connect();
 
-    const latestResult = await client.sql`
-      SELECT * FROM pings
-      WHERE device_id = ${deviceId}
-      ORDER BY recorded_at DESC
-      LIMIT 1
-    `;
+    const latestResult = await client.query(
+      `SELECT * FROM pings WHERE device_id = $1 ORDER BY recorded_at DESC LIMIT 1`,
+      [deviceId]
+    );
 
     if (latestResult.rows.length === 0) {
       return res.status(404).json({ error: 'No pings yet for this device' });
@@ -61,13 +64,10 @@ export default async function handler(req, res) {
 
     let history = [];
     if (historyLimit > 0) {
-      const historyResult = await client.sql`
-        SELECT latitude, longitude, recorded_at, battery_pct
-        FROM pings
-        WHERE device_id = ${deviceId}
-        ORDER BY recorded_at DESC
-        LIMIT ${historyLimit}
-      `;
+      const historyResult = await client.query(
+        `SELECT latitude, longitude, recorded_at, battery_pct FROM pings WHERE device_id = $1 ORDER BY recorded_at DESC LIMIT $2`,
+        [deviceId, historyLimit]
+      );
       history = historyResult.rows;
     }
 
