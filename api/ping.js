@@ -55,6 +55,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('ping insert failed', err);
-    return res.status(500).json({ error: 'Server error' });
+    // TEMPORARY: expose the real error for debugging. Remove `detail` once
+    // the connection issue is diagnosed and fixed.
+    return res.status(500).json({ error: 'Server error', detail: String(err && err.message || err) });
   }
 }
