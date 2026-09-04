@@ -1,4 +1,4 @@
-import { sql } from '@vercel/postgres';
+import { createClient } from '@vercel/postgres';
 
 // The dashboard calls this to read location data:
 //
@@ -23,9 +23,12 @@ export default async function handler(req, res) {
   }
 
   const historyLimit = Math.min(parseInt(req.query.history || '0', 10) || 0, 500);
+  const client = createClient({ connectionString: process.env.POSTGRES_URL });
 
   try {
-    const latestResult = await sql`
+    await client.connect();
+
+    const latestResult = await client.sql`
       SELECT * FROM pings
       WHERE device_id = ${deviceId}
       ORDER BY recorded_at DESC
@@ -58,7 +61,7 @@ export default async function handler(req, res) {
 
     let history = [];
     if (historyLimit > 0) {
-      const historyResult = await sql`
+      const historyResult = await client.sql`
         SELECT latitude, longitude, recorded_at, battery_pct
         FROM pings
         WHERE device_id = ${deviceId}
@@ -72,5 +75,7 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('location query failed', err);
     return res.status(500).json({ error: 'Server error' });
+  } finally {
+    await client.end();
   }
 }
