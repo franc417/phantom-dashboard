@@ -1,4 +1,4 @@
-import { sql } from '@vercel/postgres';
+import { createClient } from '@vercel/postgres';
 
 // The device app calls this on every location update:
 //
@@ -38,8 +38,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'device_id, latitude and longitude are required' });
   }
 
+  // Prisma Postgres's POSTGRES_URL is a direct (non-pooled) connection
+  // string, not the pooler-style string @vercel/postgres's default `sql`
+  // export expects — so we use createClient() with it explicitly instead.
+  const client = createClient({ connectionString: process.env.POSTGRES_URL });
+
   try {
-    await sql`
+    await client.connect();
+    await client.sql`
       INSERT INTO pings (
         device_id, device_name, device_model, device_brand, android_ver,
         latitude, longitude, accuracy, provider,
@@ -58,5 +64,7 @@ export default async function handler(req, res) {
     // TEMPORARY: expose the real error for debugging. Remove `detail` once
     // the connection issue is diagnosed and fixed.
     return res.status(500).json({ error: 'Server error', detail: String(err && err.message || err) });
+  } finally {
+    await client.end();
   }
 }
