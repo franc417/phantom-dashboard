@@ -4,7 +4,7 @@ const { Client } = pg;
 // The device app calls this on every location update:
 //
 //   POST /api/ping
-//   Headers: { "x-device-secret": "<DEVICE_SECRET>", "content-type": "application/json" }
+//   Headers: { "x-device-secret": "<secret>", "content-type": "application/json" }
 //   Body: {
 //     device_id, device_name, device_model, device_brand, android_ver,
 //     latitude, longitude, accuracy, provider,
@@ -12,9 +12,16 @@ const { Client } = pg;
 //     timestamp   // device-local time string, optional
 //   }
 //
+// Two valid auth paths, checked in order:
+//   1. Legacy: x-device-secret matches the single global DEVICE_SECRET env
+//      var — kept for the original single-device setup so it keeps working
+//      unchanged through this migration.
+//   2. New: x-device-secret matches this device_id's own secret in the
+//      `devices` table, issued via /api/devices/register and tied to a
+//      user account.
+//
 // This route is excluded from the Basic Auth in middleware.js so the
-// device doesn't need to handle a browser-style login prompt — it only
-// needs to know DEVICE_SECRET.
+// device doesn't need to handle a browser-style login prompt.
 //
 // Uses plain `pg` over a standard TCP connection instead of
 // @vercel/postgres, which only works against Neon's WebSocket proxy and
@@ -27,10 +34,6 @@ export default async function handler(req, res) {
   }
 
   const deviceSecret = req.headers['x-device-secret'];
-  if (!deviceSecret || deviceSecret !== process.env.DEVICE_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   const body = req.body || {};
   const {
     device_id, device_name, device_model, device_brand, android_ver,
@@ -39,7 +42,10 @@ export default async function handler(req, res) {
     timestamp,
   } = body;
 
-  if (!device_id || latitude == null || longitude == null) {
+  if (!deviceSecret || !device_id) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (latitude == null || longitude == null) {
     return res.status(400).json({ error: 'device_id, latitude and longitude are required' });
   }
 
@@ -50,6 +56,19 @@ export default async function handler(req, res) {
 
   try {
     await client.connect();
+
+    let authorized = deviceSecret === process.env.DEVICE_SECRET;
+    if (!authorized) {
+      const deviceCheck = await client.query(
+        'SELECT 1 FROM devices WHERE device_id = $1 AND device_secret = $2',
+        [device_id, deviceSecret]
+      );
+      authorized = deviceCheck.rows.length > 0;
+    }
+    if (!authorized) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     await client.query(
       `INSERT INTO pings (
         device_id, device_name, device_model, device_brand, android_ver,
