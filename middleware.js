@@ -1,6 +1,8 @@
 // Protects the dashboard (index.html + /api/location) behind a browser
-// login prompt. /api/ping is excluded since the device authenticates with
-// its own DEVICE_SECRET header instead.
+// login prompt. Several /api/ routes are excluded because they handle
+// their own auth instead: /api/ping (device secret header), and the
+// account system — /api/register, /api/login, /api/devices/* (JWT bearer
+// token, or intentionally public for register/login themselves).
 //
 // The exclusion is checked explicitly inside the function (rather than
 // relying on matcher regex syntax) so it behaves the same regardless of
@@ -13,11 +15,13 @@ export const config = {
   matcher: '/:path*',
 };
 
+const PUBLIC_PREFIXES = ['/api/ping', '/api/register', '/api/login', '/api/devices/'];
+
 export default function middleware(request) {
   const { pathname } = new URL(request.url);
 
-  if (pathname.startsWith('/api/ping')) {
-    return; // device pings skip Basic Auth entirely
+  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return; // these routes authenticate themselves; skip Basic Auth
   }
 
   const authHeader = request.headers.get('authorization');
