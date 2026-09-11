@@ -31,10 +31,18 @@ export default async function handler(req, res) {
       return res.status(404).send('Not found');
     }
 
-    const buffer = Buffer.from(result.rows[0].image_data, 'base64');
+    const imageData = result.rows[0].image_data;
+    if (!imageData) {
+      console.error('photo row found but image_data is empty', { id });
+      return res.status(500).send('Photo data missing');
+    }
+
+    const buffer = Buffer.from(imageData, 'base64');
+    res.statusCode = 200;
     res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', buffer.length);
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).send(buffer);
+    res.end(buffer);
   } catch (err) {
     console.error('photo view failed', err);
     return res.status(500).send('Server error');
